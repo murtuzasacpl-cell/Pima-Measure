@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pima – Camera Ruler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: practical, confident, workshop tool
+   IDEA: a yellow steel tape measure
+   PICTURE: tape blade strip with real cm ticks
+   COLOUR and TYPE: tape yellow, black ink; Barlow Condensed + Barlow
+   LAYOUT: one column, big start button, steps, history */
+:root{--y:#f5c400;--ink:#141414;--bg:#fffdf3;--mut:#5d5a4e;--card:#fff;--line:#e6dfc2}
+@media(prefers-color-scheme:dark){:root{--bg:#121210;--ink:#f4f1e6;--mut:#aaa592;--card:#1c1b17;--line:#33312a}}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.num{font-family:"Barlow Condensed",system-ui,sans-serif}
+#home{max-width:640px;margin:0 auto;padding:max(24px,env(safe-area-inset-top)) 18px 48px}
+h1{font-size:52px;line-height:1;margin:8px 0 4px;font-weight:800}
+.lead{margin:0 0 18px;color:var(--mut);font-size:17px}
+.tape{display:block;width:100%;height:78px;border-radius:6px;box-shadow:0 6px 0 rgba(0,0,0,.12)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:18px}
+.status{display:flex;gap:10px;align-items:flex-start}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:6px;flex:none;background:#999}
+.ok .dot{background:#1f9d55}.bad .dot{background:#d13b2a}
+.btn{appearance:none;border:0;font:700 20px "Barlow Condensed",sans-serif;letter-spacing:.02em;border-radius:12px;min-height:56px;padding:0 22px;cursor:pointer}
+.go{background:var(--y);color:#141414;width:100%;margin-top:16px;font-size:24px;box-shadow:0 4px 0 #b38f00}
+.go:disabled{opacity:.45;box-shadow:none}
+.btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+h2{font-size:28px;margin:30px 0 6px;font-weight:800}
+ol{padding-left:22px;margin:6px 0}li{margin:6px 0}
+.tips{color:var(--mut);font-size:15px}
+#hist{list-style:none;padding:0;margin:8px 0 0}
+#hist li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:10px 0;flex-wrap:wrap}
+#hist .num{font-size:22px;font-weight:800}
+.small{font-size:13px;color:var(--mut)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);min-height:44px;font-size:17px}
+.units{display:flex;gap:6px;margin-top:12px}
+.units button{flex:1;min-height:44px;font-size:17px;background:var(--card);color:var(--ink);border:2px solid var(--line)}
+.units button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* AR overlay */
+#ov{display:none;position:fixed;inset:0;color:#fff;font-family:Barlow,sans-serif;user-select:none;-webkit-user-select:none}
+#ov.on{display:block}
+.top{position:absolute;top:max(14px,env(safe-area-inset-top));left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+#read{background:var(--y);color:#141414;font:800 40px/1 "Barlow Condensed",sans-serif;padding:8px 20px 6px;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+#hint{background:rgba(0,0,0,.6);padding:6px 14px;border-radius:20px;font-size:15px;text-align:center;max-width:90vw}
+.cross{position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;pointer-events:none}
+.cross:before,.cross:after{content:"";position:absolute;background:#fff;box-shadow:0 0 3px #000}
+.cross:before{left:13px;top:0;width:2px;height:28px}.cross:after{top:13px;left:0;height:2px;width:28px}
+.ctl{position:absolute;left:0;right:0;bottom:max(22px,env(safe-area-inset-bottom));display:flex;justify-content:center;align-items:center;gap:26px}
+.ctl button,.corner button{background:rgba(20,20,20,.72);color:#fff;border:2px solid rgba(255,255,255,.5);border-radius:50%;width:60px;height:60px;font:700 15px Barlow,sans-serif}
+#add{width:84px;height:84px;background:var(--y);color:#141414;border:4px solid #fff;font-size:44px;line-height:1}
+.corner{position:absolute;top:max(14px,env(safe-area-inset-top));right:14px;display:flex;flex-direction:column;gap:10px}
+.corner button{width:52px;height:52px;border-radius:14px}
+.lbl{position:absolute;transform:translate(-50%,-130%);background:#fff;color:#141414;font:800 20px/1 "Barlow Condensed",sans-serif;padding:5px 10px 4px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}
+.lbl.live{background:var(--y)}
+</style>
+</head>
+<body>
+<main id="home">
+  <h1>Pima</h1>
+  <p class="lead">Measure length with your phone camera. No tape measure needed.</p>
+  <svg class="tape" id="tape" viewBox="0 0 640 78" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+  <div class="card status" id="status"><span class="dot"></span><div id="statusText">Checking whether your phone supports AR…</div></div>
+
+  <div class="units" id="units" role="group" aria-label="Units">
+    <button class="btn" data-u="cm">cm</button><button class="btn" data-u="m">m</button>
+    <button class="btn" data-u="in">inch</button><button class="btn" data-u="ft">ft</button>
+  </div>
+  <button class="btn go" id="start" disabled>Start measuring</button>
+
+  <h2>How to use</h2>
+  <ol>
+    <li>Tap <b>Start measuring</b> and allow camera access.</li>
+    <li>Point at the floor or a table and move the phone slowly side to side until a yellow ring appears.</li>
+    <li>Put the cross on the start of the object and tap <b>+</b> (or tap anywhere on the screen).</li>
+    <li>Move to the end point. The length updates live. Tap <b>+</b> again to finish.</li>
+  </ol>
+  <p class="tips">For the best accuracy, use good light, keep the phone 30 cm to 2 m from the object, and avoid plain white or shiny surfaces. Expect about ±1–2 cm.</p>
+
+  <h2>Saved measurements</h2>
+  <ul id="hist"></ul>
+  <div class="row"><button class="btn ghost" id="copy">Copy all</button><button class="btn ghost" id="clr">Clear history</button></div>
+  <p class="small" id="msg"></p>
+</main>
+
+<div id="ov">
+  <div class="cross"></div>
+  <div id="labels"></div>
+  <div class="top"><div id="read">–</div><div id="hint">Move your phone slowly to find a surface</div></div>
+  <div class="corner"><button id="close" aria-label="Close">✕</button><button id="unitBtn" aria-label="Change unit">cm</button></div>
+  <div class="ctl"><button id="undo">Undo</button><button id="add" aria-label="Add point">+</button><button id="clear">Clear</button></div>
+</div>
+
+<script>
+{
+const $ = id => document.getElementById(id);
+const UNITS = ['cm','m','in','ft'];
+let unit = 'cm';
+try { unit = localStorage.getItem('pima-unit') || 'cm'; } catch(e) {}
+
+/* ---------- formatting ---------- */
+function fmt(m){
+  if (unit === 'cm') return (m < 1 ? (m*100).toFixed(1) : (m*100).toFixed(0)) + ' cm';
+  if (unit === 'm') return m.toFixed(3) + ' m';
+  const inch = m / 0.0254;
+  if (unit === 'in') return inch.toFixed(1) + ' in';
+  let ft = Math.floor(inch / 12), rest = inch - ft*12;
+  if (rest >= 11.95) { ft++; rest = 0; }
+  return ft + '′ ' + rest.toFixed(1) + '″';
+}
+function setUnit(u){
+  unit = u;
+  try { localStorage.setItem('pima-unit', u); } catch(e) {}
+  document.querySelectorAll('#units button').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === u));
+  $('unitBtn').textContent = u;
+  renderHist();
+  rebuildLabels();
+}
+document.querySelectorAll('#units button').forEach(b => b.addEventListener('click', () => setUnit(b.dataset.u)));
+
+/* ---------- tape picture ---------- */
+(function drawTape(){
+  let s = '<rect width="640" height="78" fill="#f5c400"/><rect y="70" width="640" height="8" fill="#d9ad00"/>';
+  for (let i = 0; i <= 640; i += 4) {
+    const mm = i/4, h = mm % 10 === 0 ? 30 : mm % 5 === 0 ? 20 : 11;
+    s += `<rect x="${i}" y="0" width="${mm%10===0?2:1}" height="${h}" fill="#141414"/>`;
+    if (mm % 10 === 0 && mm > 0) s += `<text x="${i+3}" y="56" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="20" fill="${mm%50===0?'#c8231b':'#141414'}">${mm/10}</text>`;
+  }
+  $('tape').innerHTML = s;
+})();
+
+/* ---------- history ---------- */
+let hist = [];
+try { hist = JSON.parse(localStorage.getItem('pima-hist') || '[]'); } catch(e) { hist = []; }
+function saveHist(){ try { localStorage.setItem('pima-hist', JSON.stringify(hist.slice(0,100))); } catch(e) {} }
+function renderHist(){
+  $('hist').innerHTML = hist.length ? hist.map(h =>
+    `<li><span class="num">${fmt(h.m)}</span><span class="small">${new Date(h.t).toLocaleString()}</span></li>`).join('')
+    : '<li class="small">No measurements yet. They will appear here after you measure.</li>';
+}
+$('clr').addEventListener('click', () => { hist = []; saveHist(); renderHist(); });
+$('copy').addEventListener('click', async () => {
+  const txt = hist.map(h => fmt(h.m) + '  (' + new Date(h.t).toLocaleString() + ')').join('\n');
+  try { await navigator.clipboard.writeText(txt || 'No measurements'); $('msg').textContent = 'Copied.'; }
+  catch(e) { $('msg').textContent = 'Could not copy on this browser.'; }
+});
+
+/* ---------- support check ---------- */
+function status(ok, html){ $('status').className = 'card status ' + (ok ? 'ok' : 'bad'); $('statusText').innerHTML = html; }
+if (!window.isSecureContext) {
+  status(false, 'This page must be opened from an <b>https://</b> link (for example GitHub Pages). AR does not work from a plain file.');
+} else if (!navigator.xr) {
+  status(false, 'Your browser has no WebXR. Open this page in <b>Google Chrome</b> on Android and make sure <b>Google Play Services for AR</b> is installed from the Play Store.');
+} else {
+  navigator.xr.isSessionSupported('immersive-ar').then(ok => {
+    if (ok) { status(true, 'Your phone supports AR. Ready to measure.'); $('start').disabled = false; }
+    else status(false, 'AR is not available. Install or update <b>Google Play Services for AR</b> from the Play Store, then reload in Chrome.');
+  }).catch(() => status(false, 'Could not check AR support.'));
+}
+
+/* ---------- math helpers ---------- */
+const sub = (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+const add = (a,b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+const mul = (a,s) => [a[0]*s, a[1]*s, a[2]*s];
+const len = a => Math.hypot(a[0], a[1], a[2]);
+const cross = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const dist = (a,b) => len(sub(a,b));
+function xform(m, x, y, z){ return [m[0]*x+m[4]*y+m[8]*z+m[12], m[1]*x+m[5]*y+m[9]*z+m[13], m[2]*x+m[6]*y+m[10]*z+m[14]]; }
+function mul4(m, v){ const r = [0,0,0,0]; for (let i = 0; i < 4; i++) r[i] = m[i]*v[0]+m[4+i]*v[1]+m[8+i]*v[2]+m[12+i]*v[3]; return r; }
+
+/* ---------- WebGL ---------- */
+let gl, prog, buf, loc = {};
+function initGL(){
+  const c = document.createElement('canvas');
+  gl = c.getContext('webgl', { xrCompatible: true, alpha: true, antialias: true });
+  const vs = 'attribute vec3 p;uniform mat4 P;uniform mat4 V;uniform float S;void main(){gl_Position=P*V*vec4(p,1.0);gl_PointSize=S;}';
+  const fs = 'precision mediump float;uniform vec4 C;uniform float R;void main(){if(R>0.5){vec2 d=gl_PointCoord-0.5;if(dot(d,d)>0.25)discard;}gl_FragColor=C;}';
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  ['P','V','S','C','R'].forEach(n => loc[n] = gl.getUniformLocation(prog, n));
+  loc.p = gl.getAttribLocation(prog, 'p');
+  buf = gl.createBuffer();
+}
+function draw(pts, mode, color, size, round){
+  if (!pts.length) return;
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pts), gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(loc.p);
+  gl.vertexAttribPointer(loc.p, 3, gl.FLOAT, false, 0, 0);
+  gl.uniform4fv(loc.C, color); gl.uniform1f(loc.S, size || 1); gl.uniform1f(loc.R, round ? 1 : 0);
+  gl.drawArrays(mode, 0, pts.length / 3);
+}
+function ribbon(a, b, cam, w, out){
+  const d = sub(b, a), mid = mul(add(a, b), 0.5);
+  let n = cross(d, sub(cam, mid)); const l = len(n);
+  if (l < 1e-9) return;
+  n = mul(n, w / 2 / l);
+  const a1 = add(a, n), a2 = sub(a, n), b1 = add(b, n), b2 = sub(b, n);
+  out.push(...a1, ...a2, ...b1, ...b1, ...a2, ...b2);
+}
+
+/* ---------- AR session ---------- */
+let session = null, refSpace = null, hitSrc = null;
+let reticle = null, smooth = null;
+let pending = null, segs = [];
+let labelEls = [], liveEl = null;
+
+function rebuildLabels(){
+  const box = $('labels'); box.innerHTML = '';
+  labelEls = segs.map(s => { const e = document.createElement('div'); e.className = 'lbl'; e.textContent = fmt(s.d); box.appendChild(e); return e; });
+  liveEl = document.createElement('div'); liveEl.className = 'lbl live'; liveEl.style.display = 'none'; box.appendChild(liveEl);
+}
+function addPoint(){
+  if (!smooth) { $('hint').textContent = 'No surface yet – move the phone slowly'; return; }
+  const p = smooth.slice();
+  if (!pending) pending = p;
+  else { segs.push({ a: pending, b: p, d: dist(pending, p) }); pending = null; rebuildLabels(); }
+  try { navigator.vibrate && navigator.vibrate(15); } catch(e) {}
+}
+// buttons must not also trigger an AR "select" tap
+['add','undo','clear','close','unitBtn'].forEach(id => $(id).addEventListener('beforexrselect', e => e.preventDefault()));
+$('add').addEventListener('click', addPoint);
+$('undo').addEventListener('click', () => { if (pending) pending = null; else if (segs.length) { const s = segs.pop(); pending = s.a; } rebuildLabels(); });
+$('clear').addEventListener('click', () => { pending = null; segs = []; rebuildLabels(); });
+$('close').addEventListener('click', () => session && session.end());
+$('unitBtn').addEventListener('click', () => setUnit(UNITS[(UNITS.indexOf(unit) + 1) % UNITS.length]));
+
+$('start').addEventListener('click', async () => {
+  try {
+    if (!gl) initGL();
+    session = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'], domOverlay: { root: $('ov') }
+    });
+  } catch (e) { status(false, 'Could not start AR: ' + (e.message || e)); return; }
+  await gl.makeXRCompatible();
+  session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+  refSpace = await session.requestReferenceSpace('local');
+  const viewer = await session.requestReferenceSpace('viewer');
+  hitSrc = await session.requestHitTestSource({ space: viewer });
+  pending = null; segs = []; smooth = null; rebuildLabels();
+  $('ov').classList.add('on');
+  session.addEventListener('select', addPoint);
+  session.addEventListener('end', () => {
+    segs.forEach(s => hist.unshift({ m: s.d, t: Date.now() }));
+    saveHist(); renderHist();
+    $('ov').classList.remove('on');
+    session = null; hitSrc = null;
+  });
+  session.requestAnimationFrame(onFrame);
+});
+
+const RING = (() => { const out = []; const N = 48, r1 = 0.04, r2 = 0.05;
+  for (let i = 0; i < N; i++) { const a = i/N*Math.PI*2, b = (i+1)/N*Math.PI*2;
+    const p = [[Math.cos(a)*r1, Math.sin(a)*r1], [Math.cos(a)*r2, Math.sin(a)*r2], [Math.cos(b)*r1, Math.sin(b)*r1], [Math.cos(b)*r2, Math.sin(b)*r2]];
+    out.push(p[0], p[1], p[2], p[2], p[1], p[3]); }
+  return out; })();
+
+function onFrame(t, frame){
+  const s = frame.session; s.requestAnimationFrame(onFrame);
+  const pose = frame.getViewerPose(refSpace);
+  const layer = s.renderState.baseLayer;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  if (!pose) { $('hint').textContent = 'Tracking lost – move slowly'; return; }
+
+  reticle = null;
+  if (hitSrc) {
+    const r = frame.getHitTestResults(hitSrc);
+    if (r.length) { const hp = r[0].getPose(refSpace); if (hp) reticle = hp.transform.matrix; }
+  }
+  if (reticle) {
+    const p = [reticle[12], reticle[13], reticle[14]];
+    smooth = smooth && dist(smooth, p) < 0.05 ? add(mul(smooth, 0.6), mul(p, 0.4)) : p; // reduce jitter
+  } else smooth = null;
+
+  const cp = pose.transform.position, cam = [cp.x, cp.y, cp.z];
+  const tris = [], dots = [];
+  segs.forEach(sg => { ribbon(sg.a, sg.b, cam, 0.005, tris); dots.push(...sg.a, ...sg.b); });
+  const liveTris = [];
+  if (pending) { dots.push(...pending); if (smooth) ribbon(pending, smooth, cam, 0.004, liveTris); }
+  const ring = [];
+  if (reticle) RING.forEach(q => ring.push(...xform(reticle, q[0], 0, q[1])));
+
+  for (const view of pose.views) {
+    const vp = layer.getViewport(view);
+    gl.viewport(vp.x, vp.y, vp.width, vp.height);
+    gl.uniformMatrix4fv(loc.P, false, view.projectionMatrix);
+    gl.uniformMatrix4fv(loc.V, false, view.transform.inverse.matrix);
+    draw(ring, gl.TRIANGLES, [1, 0.77, 0, 0.95]);
+    draw(tris, gl.TRIANGLES, [1, 1, 1, 1]);
+    draw(liveTris, gl.TRIANGLES, [1, 0.77, 0, 1]);
+    draw(dots, gl.POINTS, [1, 1, 1, 1], 22, true);
+  }
+
+  // labels + readout
+  const v = pose.views[0], P = v.projectionMatrix, V = v.transform.inverse.matrix;
+  const W = window.innerWidth, H = window.innerHeight;
+  const place = (el, a, b) => {
+    const m = mul(add(a, b), 0.5);
+    const c = mul4(P, mul4(V, [m[0], m[1], m[2], 1]));
+    if (c[3] <= 0) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.style.left = ((c[0]/c[3] + 1) / 2 * W) + 'px';
+    el.style.top = ((1 - c[1]/c[3]) / 2 * H) + 'px';
+  };
+  segs.forEach((sg, i) => labelEls[i] && place(labelEls[i], sg.a, sg.b));
+  if (pending && smooth) { liveEl.textContent = fmt(dist(pending, smooth)); place(liveEl, pending, smooth); }
+  else if (liveEl) liveEl.style.display = 'none';
+
+  if (pending && smooth) { $('read').textContent = fmt(dist(pending, smooth)); $('hint').textContent = 'Aim at the end point and tap +'; }
+  else if (pending) { $('hint').textContent = 'Surface lost – move slowly'; }
+  else if (smooth) { $('read').textContent = segs.length ? fmt(segs[segs.length-1].d) : '–'; $('hint').textContent = segs.length ? 'Tap + to start another measurement' : 'Aim at the start point and tap +'; }
+  else $('hint').textContent = 'Move your phone slowly to find a surface';
+}
+
+setUnit(unit);
+}
+</script>
+</body>
+</html>
